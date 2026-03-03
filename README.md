@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://wangst0181.github.io/pi-StepNFT/"><img src="https://img.shields.io/badge/%F0%9F%8C%90%20Homepage-00A3FF" alt="Homepage"/></a>
-  <a href='#arxiv'><img src='https://img.shields.io/badge/%F0%9F%93%96%20Paper-ArXiv-C71585'></a>
+  <a href='https://arxiv.org/abs/2603.02083'><img src='https://img.shields.io/badge/%F0%9F%93%96%20Paper-ArXiv-C71585'></a>
 </div>
 
 $\pi$-StepNFT (Step-wise Negative-aware Fine-Tuning) is a **critic-and-likelihood-free online RL framework** for flow-based vision-language-action (VLA) policies.
@@ -91,7 +91,7 @@ bash examples/embodiment/batch_eval_mani_ood.sh
 
 
 
-**Related Projects**
+## Related Projects
 - RLinf: https://github.com/RLinf/RLinf
 ```bibtex
 @article{yu2025rlinf,
@@ -109,5 +109,18 @@ bash examples/embodiment/batch_eval_mani_ood.sh
   author={Zheng, Kaiwen and Chen, Huayu and Ye, Haotian and Wang, Haoxiang and Zhang, Qinsheng and Jiang, Kai and Su, Hang and Ermon, Stefano and Zhu, Jun and Liu, Ming-Yu},
   journal={arXiv preprint arXiv:2509.16117},
   year={2025}
+}
+```
+
+## Citation
+```bibtex
+@misc{wang2026pistepnftwiderspaceneeds,
+      title={$\pi$-StepNFT: Wider Space Needs Finer Steps in Online RL for Flow-based VLAs}, 
+      author={Siting Wang and Xiaofeng Wang and Zheng Zhu and Minnan Pei and Xinyu Cui and Cheng Deng and Jian Zhao and Guan Huang and Haifeng Zhang and Jun Wang},
+      year={2026},
+      eprint={2603.02083},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO},
+      url={https://arxiv.org/abs/2603.02083}, 
 }
 ```
