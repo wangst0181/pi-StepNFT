@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import multiprocessing
+import traceback
 import warnings
 from multiprocessing import connection
 from typing import Any, Callable, Optional, Union
@@ -28,6 +29,7 @@ from rlinf.envs.venv import (
     ShArray,
     SubprocEnvWorker,
     SubprocVectorEnv,
+    SubprocError,
     _setup_buf,
 )
 
@@ -58,7 +60,12 @@ def _worker(
         return None
 
     parent.close()
-    env = env_fn_wrapper.data()
+    init_err: Optional[str] = None
+    env: Optional[gym.Env] = None
+    try:
+        env = env_fn_wrapper.data()
+    except Exception:
+        init_err = traceback.format_exc()
     try:
         while True:
             try:
@@ -66,14 +73,39 @@ def _worker(
             except EOFError:  # the pipe has been closed
                 p.close()
                 break
+            if init_err is not None:
+                try:
+                    p.send(SubprocError(where="init", tb=init_err))
+                except Exception:
+                    pass
+                p.close()
+                break
             if cmd == "step":
-                env_return = env.step(data)
+                try:
+                    assert env is not None
+                    env_return = env.step(data)
+                except Exception:
+                    try:
+                        p.send(SubprocError(where="step", tb=traceback.format_exc()))
+                    except Exception:
+                        pass
+                    p.close()
+                    break
                 if obs_bufs is not None:
                     _encode_obs(env_return[0], obs_bufs)
                     env_return = (None, *env_return[1:])
                 p.send(env_return)
             elif cmd == "reset":
-                retval = env.reset(**data)
+                try:
+                    assert env is not None
+                    retval = env.reset(**data)
+                except Exception:
+                    try:
+                        p.send(SubprocError(where="reset", tb=traceback.format_exc()))
+                    except Exception:
+                        pass
+                    p.close()
+                    break
                 reset_returns_info = (
                     isinstance(retval, (tuple, list))
                     and len(retval) == 2
@@ -91,36 +123,137 @@ def _worker(
                 else:
                     p.send(obs)
             elif cmd == "close":
-                p.send(env.close())
+                try:
+                    assert env is not None
+                    p.send(env.close())
+                except Exception:
+                    try:
+                        p.send(SubprocError(where="close", tb=traceback.format_exc()))
+                    except Exception:
+                        pass
                 p.close()
                 break
             elif cmd == "render":
-                p.send(env.render(**data) if hasattr(env, "render") else None)
+                try:
+                    assert env is not None
+                    p.send(env.render(**data) if hasattr(env, "render") else None)
+                except Exception:
+                    try:
+                        p.send(SubprocError(where="render", tb=traceback.format_exc()))
+                    except Exception:
+                        pass
+                    p.close()
+                    break
             elif cmd == "seed":
-                if hasattr(env, "seed"):
-                    p.send(env.seed(data))
-                else:
-                    env.reset(seed=data)
-                    p.send(None)
+                try:
+                    assert env is not None
+                    if hasattr(env, "seed"):
+                        p.send(env.seed(data))
+                    else:
+                        env.reset(seed=data)
+                        p.send(None)
+                except Exception:
+                    try:
+                        p.send(SubprocError(where="seed", tb=traceback.format_exc()))
+                    except Exception:
+                        pass
+                    p.close()
+                    break
             elif cmd == "getattr":
-                p.send(getattr(env, data) if hasattr(env, data) else None)
+                try:
+                    assert env is not None
+                    p.send(getattr(env, data) if hasattr(env, data) else None)
+                except Exception:
+                    try:
+                        p.send(SubprocError(where="getattr", tb=traceback.format_exc()))
+                    except Exception:
+                        pass
+                    p.close()
+                    break
             elif cmd == "setattr":
-                setattr(env.unwrapped, data["key"], data["value"])
+                try:
+                    assert env is not None
+                    setattr(env.unwrapped, data["key"], data["value"])
+                except Exception:
+                    try:
+                        p.send(SubprocError(where="setattr", tb=traceback.format_exc()))
+                    except Exception:
+                        pass
+                    p.close()
+                    break
             elif cmd == "check_success":
-                p.send(env.check_success())
+                try:
+                    assert env is not None
+                    p.send(env.check_success())
+                except Exception:
+                    try:
+                        p.send(
+                            SubprocError(where="check_success", tb=traceback.format_exc())
+                        )
+                    except Exception:
+                        pass
+                    p.close()
+                    break
             elif cmd == "get_segmentation_of_interest":
-                p.send(env.get_segmentation_of_interest(data))
+                try:
+                    assert env is not None
+                    p.send(env.get_segmentation_of_interest(data))
+                except Exception:
+                    try:
+                        p.send(
+                            SubprocError(
+                                where="get_segmentation_of_interest",
+                                tb=traceback.format_exc(),
+                            )
+                        )
+                    except Exception:
+                        pass
+                    p.close()
+                    break
             elif cmd == "get_sim_state":
-                p.send(env.get_sim_state())
+                try:
+                    assert env is not None
+                    p.send(env.get_sim_state())
+                except Exception:
+                    try:
+                        p.send(
+                            SubprocError(where="get_sim_state", tb=traceback.format_exc())
+                        )
+                    except Exception:
+                        pass
+                    p.close()
+                    break
             elif cmd == "set_init_state":
-                obs = env.set_init_state(data)
-                p.send(obs)
+                try:
+                    assert env is not None
+                    obs = env.set_init_state(data)
+                    p.send(obs)
+                except Exception:
+                    try:
+                        p.send(
+                            SubprocError(where="set_init_state", tb=traceback.format_exc())
+                        )
+                    except Exception:
+                        pass
+                    p.close()
+                    break
             elif cmd == "reconfigure":
-                env.close()
-                seed = data.pop("seed")
-                env = OffScreenRenderEnv(**data)
-                env.seed(seed)
-                p.send(None)
+                try:
+                    assert env is not None
+                    env.close()
+                    seed = data.pop("seed")
+                    env = OffScreenRenderEnv(**data)
+                    env.seed(seed)
+                    p.send(None)
+                except Exception:
+                    try:
+                        p.send(
+                            SubprocError(where="reconfigure", tb=traceback.format_exc())
+                        )
+                    except Exception:
+                        pass
+                    p.close()
+                    break
             else:
                 p.close()
                 raise NotImplementedError
@@ -153,7 +286,12 @@ class ReconfigureSubprocEnvWorker(SubprocEnvWorker):
 
     def reconfigure_env_fn(self, env_fn_param):
         self.parent_remote.send(["reconfigure", env_fn_param])
-        return self.parent_remote.recv()
+        result = self.parent_remote.recv()
+        if isinstance(result, SubprocError):
+            raise RuntimeError(
+                f"[ReconfigureSubprocEnvWorker] subprocess env error ({result.where}):\n{result.tb}"
+            )
+        return result
 
 
 class ReconfigureSubprocEnv(SubprocVectorEnv):

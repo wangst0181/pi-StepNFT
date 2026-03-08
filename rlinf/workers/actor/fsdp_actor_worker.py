@@ -1487,7 +1487,7 @@ class EmbodiedFSDPActor(FSDPModelManager, Worker):
             "loss_mask": self.rollout_batch.get("loss_mask", None),
             "loss_mask_sum": self.rollout_batch.get("loss_mask_sum", None),
             "rollout_epoch": self.cfg.algorithm.get("rollout_epoch", 1),
-            "adv_clip_max": self.cfg.algorithm.get("clip_ratio_high", 5.0),
+            "adv_clip_max": self.cfg.algorithm.get("clip_ratio_high", 1.0),
         }
 
         advantages_and_returns = calculate_adv_and_returns(**kwargs)
@@ -1509,23 +1509,6 @@ class EmbodiedFSDPActor(FSDPModelManager, Worker):
                 val = val.item()
             rollout_metrics["avg_success_done_step"] = val
 
-        if self.cfg.algorithm.loss_type == "nft-actor":
-            with torch.no_grad():
-                adv = self.rollout_batch["advantages"]
-                group_size = self.cfg.algorithm.get("group_size", 8)
-                if adv.numel() % group_size == 0:
-                    adv_grouped = adv.reshape(-1, group_size)
-                    is_positive = adv_grouped > 0
-                    group_pos_counts = is_positive.sum(dim=1).float()
-                    avg_group_pos_count = group_pos_counts.mean().item()
-                    zero_pos_group_ratio = (
-                        group_pos_counts == 0
-                    ).float().mean().item()
-                else:
-                    avg_group_pos_count = -1.0
-                    zero_pos_group_ratio = -1.0
-            rollout_metrics["rollout/avg_group_pos_count"] = avg_group_pos_count
-            rollout_metrics["rollout/zero_pos_group_ratio"] = zero_pos_group_ratio
         return rollout_metrics
 
     def run_training(self) -> None:
@@ -1677,18 +1660,12 @@ class EmbodiedFSDPActor(FSDPModelManager, Worker):
                             "loss_mask": data.get("loss_mask", None),
                             "loss_mask_sum": data.get("loss_mask_sum", None),
                             "time_decay_weights": data.get("time_decay_weights", None),
-                            "beta": self.cfg.algorithm.get("nft_beta", 0.1),
+                            "beta": self.cfg.algorithm.get("nft_beta", 1.0),
                             "kl_beta": self.cfg.algorithm.get("kl_beta", 0.0),
                             "adv_clip_max": self.cfg.algorithm.get(
-                                "clip_ratio_high", 5.0
+                                "clip_ratio_high", 1.0
                             ),
                             "task_ids": data.get("task_ids", None),
-                            "use_task_deltaE_norm": self.cfg.algorithm.get(
-                                "use_task_deltaE_norm", True
-                            ),
-                            "use_task_balance_weights": self.cfg.algorithm.get(
-                                "use_task_balance_weights", True
-                            ),
                             "values": values,
                             "returns": returns,
                             "prev_values": prev_values,
