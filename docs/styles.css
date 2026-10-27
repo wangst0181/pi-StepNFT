@@ -157,6 +157,8 @@ h1 {
 }
 
 .figure {
+  margin: 0;
+  min-width: 0;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -180,12 +182,27 @@ h1 {
 
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border-radius: 12px;
+}
+
+.table-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.results-note {
+  font-size: 14px;
 }
 
 .result-table {
   width: 100%;
+  min-width: 740px;
   border-collapse: collapse;
   font-size: 14px;
   background: #fff;
@@ -215,6 +232,24 @@ h1 {
   font-weight: 600;
 }
 
+.result-table th[scope="row"] {
+  background: transparent;
+  text-align: left;
+  font-weight: 500;
+}
+
+.result-table .ours {
+  background: #f0f7ff;
+}
+
+.result-table .group-row th {
+  text-align: left;
+}
+
+.result-table td {
+  font-variant-numeric: tabular-nums;
+}
+
 .result-table tr:last-child td {
   border-bottom: none;
 }
@@ -236,6 +271,39 @@ h1 {
   gap: 16px;
 }
 
+.section > .figure + .figure {
+  margin-top: 24px;
+}
+
+.plot-grid {
+  display: grid;
+  gap: 20px 16px;
+}
+
+.ablation-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hyperparameter-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.plot-panel {
+  min-width: 0;
+}
+
+.plot-panel img {
+  width: 100%;
+  aspect-ratio: 1.4;
+  object-fit: contain;
+}
+
+.panel-title {
+  text-align: center;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
 .footer {
   margin-top: 64px;
   border-top: 1px solid var(--line);
@@ -247,4 +315,10 @@ h1 {
 @media (max-width: 680px) {
   .hero { padding: 28px; }
   .links { gap: 8px; }
+  .ablation-grid,
+  .hyperparameter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 420px) {
+  .plot-grid { grid-template-columns: minmax(0, 1fr); }
 }

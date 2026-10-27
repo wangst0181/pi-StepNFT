@@ -15,7 +15,7 @@
       <div class="hero-content">
         <div class="kicker">Online RL · Flow-based VLA</div>
         <h1>π-StepNFT: Wider Space Needs Finer Steps in Online RL for Flow-based VLAs</h1>
-        <p class="subtitle">Critic-free, likelihood-free online RL fine-tuning for flow-based VLA policies using Flow-SDE exploration and step-wise contrastive ranking.</p>
+        <p class="subtitle">Online RL for flow-based VLA policies using Flow-SDE exploration and variance-normalized, step-wise contrastive ranking, without computing final-action likelihoods.</p>
         <div class="authors">
           <strong>Siting Wang</strong>, Xiaofeng Wang, Zheng Zhu, Minnan Pei, Xinyu Cui, Cheng Deng, Jian Zhao, Guan Huang, Haifeng Zhang, Jun Wang
         </div>
@@ -56,7 +56,7 @@
     <section class="section">
       <h2>TL;DR</h2>
       <div class="tldr">
-        <div><strong>π-StepNFT</strong> is a <strong>critic-free, likelihood-free</strong> online RL fine-tuning method for <strong>flow-based VLA policies</strong>.</div>
+        <div><strong>π-StepNFT</strong> maps binary outcomes or critic-derived feedback to local velocity updates for <strong>flow-based VLA policies</strong>, without computing final-action likelihoods.</div>
         <div><strong>Key insight:</strong> wider exploration space needs finer, step-wise alignment — achieved via <strong>Flow-SDE exploration</strong> + <strong>step-wise contrastive ranking</strong>.</div>
       </div>
     </section>
@@ -64,254 +64,110 @@
     <section class="section">
       <h2>Highlights</h2>
       <div class="highlight-grid">
-        <div class="highlight">Critic-free & likelihood-free online RL for flow-based VLAs (single forward pass per update).</div>
-        <div class="highlight">Flow-SDE sampling widens exploration beyond the expert manifold.</div>
-        <div class="highlight">Step-wise supervision + contrastive ranking stabilizes alignment across solver steps.</div>
-        <div class="highlight">Strong gains on LIBERO (few-shot) and improved OOD robustness on ManiSkill.</div>
+        <div class="highlight">Binary-outcome updates require no critic; the same ranking objective also accepts critic-derived feedback.</div>
+        <div class="highlight">Flow-SDE sampling explores a wider local stochastic transition space.</div>
+        <div class="highlight">Variance-normalized ranking supervises the adjacent transitions observed during sampling.</div>
+        <div class="highlight">Shared-initialization gains on LIBERO and stronger reported mean success on five ManiSkill visual shifts.</div>
       </div>
     </section>
 
     <section class="section">
       <h2>Method at a Glance</h2>
       <figure class="figure">
-        <img src="assets/figure1_training_paradigms.png" alt="Figure 1 — Comparison of training paradigms" />
-        <figcaption>Figure 1 — Comparison of training paradigms.</figcaption>
+        <img src="assets/figure1_stepwise_supervision.png" alt="Figure 1 — Wider stochastic exploration with finer step-wise supervision" />
+        <figcaption>Figure 1 — Wider stochastic exploration with finer step-wise supervision. ODE and naïve SDE baselines use terminal-derived targets; variance normalization accounts for local stochastic transitions; π-StepNFT directly supervises the observed adjacent solver transitions.</figcaption>
       </figure>
       <div class="callout">
         <strong>How π-StepNFT works (conceptually):</strong>
-        <div>1) Explore wider with Flow-SDE rollouts during training.</div>
-        <div>2) Align finer: supervise each solver step (local transition) instead of only the final output.</div>
-        <div>3) Learn preferences via contrastive ranking using positive/negative mirror branches.</div>
-        <div>4) Update the policy without critic and without likelihood estimation.</div>
+        <div>1) Explore local stochastic transitions with Flow-SDE rollouts.</div>
+        <div>2) Use observed adjacent solver states as supervision and normalize transition errors by local SDE variance.</div>
+        <div>3) Rank mirrored positive and negative velocity branches using rollout feedback.</div>
+        <div>4) Update from one sampled solver transition using binary outcomes or critic-derived feedback, without computing final-action likelihoods.</div>
       </div>
     </section>
 
     <section class="section">
       <h2>Why It Matters</h2>
-      <p>Flow-based VLA policies often collapse into a narrow expert manifold after SFT. When the trajectory drifts at test time, deterministic rollouts struggle to recover. Online RL should expand the recoverable behavior manifold — but naïve stochastic rollouts increase variance and destabilize training.</p>
-      <p><strong>π-StepNFT</strong> couples wide exploration with fine-grained step-wise alignment, enabling stable online improvement and better generalization.</p>
+      <p>Online reinforcement learning for flow-based VLAs must translate rollout feedback into updates along a multi-step denoising trajectory. Stochastic rollouts explore a wider transition space, but supervision reconstructed from the final output does not directly use the adjacent transitions observed during sampling.</p>
+      <p><strong>π-StepNFT</strong> addresses this exploration–supervision mismatch by ranking variance-normalized errors on observed SDE transitions, connecting outcome feedback to local velocity updates.</p>
     </section>
 
-    <section class="section">
+    <section class="section" id="results">
       <h2>Main Results</h2>
-      <p><em>Note:</em> comparisons are under the π-RL Flow-SDE setting.</p>
+      <p class="results-note">Updated 28 October 2026 to match the current manuscript revision. All results are success rates (%). π-StepNFT results are three-seed means; π<sub>RL</sub> baselines use the results reported by their original authors.</p>
       <div class="results-grid">
-        <figure class="figure">
-          <div class="badge">LIBERO (Few-shot)</div>
-          <table class="result-table" aria-label="Table 1 — Success rates (%) on LIBERO in the few-shot setting">
-            <thead>
-              <tr>
-                <th>Model</th>
-                <th>Spatial</th>
-                <th>Object</th>
-                <th>Goal</th>
-                <th>Long</th>
-                <th>Avg.</th>
-                <th>Δ Avg.</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th colspan="7"># Full SFT</th>
-              </tr>
-              <tr>
-                <td>π<sub>0</sub></td>
-                <td>96.8</td>
-                <td>98.8</td>
-                <td>95.8</td>
-                <td>85.2</td>
-                <td>94.2</td>
-                <td>—</td>
-              </tr>
-              <tr>
-                <td>π<sub>0.5</sub></td>
-                <td>98.8</td>
-                <td>98.2</td>
-                <td>98.0</td>
-                <td>92.4</td>
-                <td>96.9</td>
-                <td>—</td>
-              </tr>
-              <tr>
-                <th colspan="7"># Few-shot SFT + RL (π<sub>0</sub>)</th>
-              </tr>
-              <tr>
-                <td>SFT</td>
-                <td>65.3</td>
-                <td>64.4</td>
-                <td>49.8</td>
-                <td>51.2</td>
-                <td>57.6</td>
-                <td>—</td>
-              </tr>
-              <tr>
-                <td>π<sub>RL</sub> (PPO)</td>
-                <td>98.4</td>
-                <td>99.4</td>
-                <td>96.2</td>
-                <td>90.2</td>
-                <td>96.0</td>
-                <td>+38.4</td>
-              </tr>
-              <tr>
-                <td>π<sub>RL</sub> (GRPO)</td>
-                <td>97.8</td>
-                <td>97.8</td>
-                <td>83.2</td>
-                <td>81.4</td>
-                <td>90.0</td>
-                <td>+32.4</td>
-              </tr>
-              <tr>
-                <td>Ours</td>
-                <td>93.5</td>
-                <td>98.0</td>
-                <td>83.7</td>
-                <td>86.7</td>
-                <td>90.5</td>
-                <td>+32.9</td>
-              </tr>
-              <tr>
-                <th colspan="7"># Few-shot SFT + RL (π<sub>0.5</sub>)</th>
-              </tr>
-              <tr>
-                <td>SFT</td>
-                <td>84.6</td>
-                <td>95.4</td>
-                <td>84.6</td>
-                <td>43.9</td>
-                <td>77.1</td>
-                <td>—</td>
-              </tr>
-              <tr>
-                <td>π<sub>RL</sub> (PPO)</td>
-                <td>99.6</td>
-                <td>100</td>
-                <td>98.8</td>
-                <td>93.0</td>
-                <td>97.9</td>
-                <td>+20.8</td>
-              </tr>
-              <tr>
-                <td>π<sub>RL</sub> (GRPO)</td>
-                <td>97.4</td>
-                <td>99.8</td>
-                <td>91.2</td>
-                <td>77.6</td>
-                <td>91.5</td>
-                <td>+14.4</td>
-              </tr>
-              <tr>
-                <td>Ours</td>
-                <td>97.8</td>
-                <td>100</td>
-                <td>98.2</td>
-                <td>79.8</td>
-                <td>94.0</td>
-                <td>+16.9</td>
-              </tr>
-            </tbody>
-          </table>
-          <figcaption>Table 1 — Success rates (%) on LIBERO in the few-shot setting.</figcaption>
+        <figure class="figure results-figure">
+          <div class="badge">LIBERO · Few-shot online improvement</div>
+          <div class="table-scroll" role="region" aria-label="LIBERO · Few-shot online improvement results" tabindex="0">
+            <table class="result-table" id="libero-results">
+              <thead><tr><th scope="col">Model</th><th scope="col">Spatial</th><th scope="col">Object</th><th scope="col">Goal</th><th scope="col">Long</th><th scope="col">Avg.</th><th scope="col">Δ Avg. (pp)</th></tr></thead>
+              <tbody><tr class="group-row"><th colspan="7" scope="colgroup">Full SFT</th></tr>
+<tr><th scope="row">Octo</th><td>78.9</td><td>85.7</td><td>84.6</td><td>51.1</td><td>75.1</td><td>—</td></tr>
+<tr><th scope="row">OpenVLA</th><td>84.7</td><td>88.4</td><td>79.2</td><td>53.7</td><td>76.5</td><td>—</td></tr>
+<tr><th scope="row">π<sub>fast</sub></th><td>96.4</td><td>96.8</td><td>88.6</td><td>60.2</td><td>85.5</td><td>—</td></tr>
+<tr><th scope="row">OpenVLA-OFT</th><td>91.6</td><td>95.3</td><td>90.6</td><td>86.5</td><td>91.0</td><td>—</td></tr>
+<tr><th scope="row">π<sub>0</sub></th><td>96.8</td><td>98.8</td><td>95.8</td><td>85.2</td><td>94.2</td><td>—</td></tr>
+<tr><th scope="row">π<sub>0.5</sub></th><td>98.8</td><td>98.2</td><td>98.0</td><td>92.4</td><td>96.9</td><td>—</td></tr>
+<tr class="group-row"><th colspan="7" scope="colgroup">Few-shot SFT + RL (π<sub>0</sub>)</th></tr>
+<tr><th scope="row">SFT</th><td>65.3</td><td>64.4</td><td>49.8</td><td>51.2</td><td>57.6</td><td>—</td></tr>
+<tr><th scope="row">π<sub>RL</sub> (Flow-SDE + PPO)</th><td>98.4</td><td>99.4</td><td>96.2</td><td>90.2</td><td>96.0</td><td>+38.4</td></tr>
+<tr><th scope="row">π<sub>RL</sub> (Flow-SDE + GRPO)</th><td>97.8</td><td>97.8</td><td>83.2</td><td>81.4</td><td>90.0</td><td>+32.4</td></tr>
+<tr class="ours"><th scope="row">π-StepNFT</th><td>95.4</td><td>98.0</td><td>87.9</td><td>86.7</td><td>92.0</td><td>+34.4</td></tr>
+<tr class="ours"><th scope="row">π-StepNFT + Critic</th><td>97.6</td><td>98.0</td><td>89.8</td><td>90.0</td><td>93.9</td><td>+36.3</td></tr>
+<tr class="group-row"><th colspan="7" scope="colgroup">Few-shot SFT + RL (π<sub>0.5</sub>)</th></tr>
+<tr><th scope="row">SFT</th><td>84.6</td><td>95.4</td><td>84.6</td><td>43.9</td><td>77.1</td><td>—</td></tr>
+<tr><th scope="row">π<sub>RL</sub> (Flow-SDE + PPO)</th><td>99.6</td><td>100</td><td>98.8</td><td>93.0</td><td>97.9</td><td>+20.8</td></tr>
+<tr><th scope="row">π<sub>RL</sub> (Flow-SDE + GRPO)</th><td>97.4</td><td>99.8</td><td>91.2</td><td>77.6</td><td>91.5</td><td>+14.4</td></tr>
+<tr class="ours"><th scope="row">π-StepNFT</th><td>97.8</td><td>100</td><td>98.2</td><td>79.8</td><td>94.0</td><td>+16.9</td></tr>
+<tr class="ours"><th scope="row">π-StepNFT + Critic</th><td>98.0</td><td>99.3</td><td>98.2</td><td>88.4</td><td>96.0</td><td>+18.9</td></tr></tbody>
+            </table>
+          </div>
+          <figcaption>Table 1 — LIBERO results from manuscript Table 1. Online RL methods share the same few-shot SFT initialization within each backbone. Δ Avg. is the gain over that initialization in percentage points (pp).</figcaption>
         </figure>
-        <figure class="figure">
-          <div class="badge">ManiSkill (IND & OOD)</div>
-          <table class="result-table" aria-label="Table 2 — Success rates (%) on ManiSkill across IND and OOD settings">
-            <thead>
-              <tr>
-                <th rowspan="2">Model</th>
-                <th rowspan="2">IND</th>
-                <th colspan="3">OOD</th>
-                <th rowspan="2">Avg.</th>
-              </tr>
-              <tr>
-                <th>Vision</th>
-                <th>Semantic</th>
-                <th>Execution</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th colspan="6">π<sub>0</sub></th>
-              </tr>
-              <tr>
-                <td>Full SFT</td>
-                <td>38.4</td>
-                <td>32.6</td>
-                <td>8.4</td>
-                <td>13.2</td>
-                <td>18.1</td>
-              </tr>
-              <tr>
-                <td>π<sub>RL</sub> (PPO)</td>
-                <td>78.8</td>
-                <td>61.1</td>
-                <td>25.4</td>
-                <td>31.5</td>
-                <td>39.3</td>
-              </tr>
-              <tr>
-                <td>Ours</td>
-                <td><strong>79.2</strong></td>
-                <td><strong>69.1</strong></td>
-                <td><strong>49.1</strong></td>
-                <td><strong>33.1</strong></td>
-                <td><strong>50.4</strong></td>
-              </tr>
-              <tr>
-                <th colspan="6">π<sub>0.5</sub></th>
-              </tr>
-              <tr>
-                <td>Full SFT</td>
-                <td>40.1</td>
-                <td>40.2</td>
-                <td>16.6</td>
-                <td>22.4</td>
-                <td>26.4</td>
-              </tr>
-              <tr>
-                <td>π<sub>RL</sub> (PPO)</td>
-                <td><strong>90.9</strong></td>
-                <td>68.0</td>
-                <td>34.5</td>
-                <td><strong>45.4</strong></td>
-                <td>49.3</td>
-              </tr>
-              <tr>
-                <td>Ours</td>
-                <td>85.4</td>
-                <td><strong>76.9</strong></td>
-                <td><strong>56.6</strong></td>
-                <td>45.1</td>
-                <td><strong>59.5</strong></td>
-              </tr>
-            </tbody>
-          </table>
-          <figcaption>Table 2 — Success rates (%) on ManiSkill across IND and OOD settings.</figcaption>
+        <figure class="figure results-figure">
+          <div class="badge">ManiSkill · In-distribution and OOD</div>
+          <div class="table-scroll" role="region" aria-label="ManiSkill · In-distribution and OOD results" tabindex="0">
+            <table class="result-table" id="maniskill-results">
+              <thead><tr><th scope="col">Model</th><th scope="col">IND</th><th scope="col">Visual (5)</th><th scope="col">Visual-language (6)</th><th scope="col">Semantic (2)</th><th scope="col">Execution (2)</th></tr></thead>
+              <tbody><tr class="group-row"><th colspan="6" scope="colgroup">π<sub>0</sub></th></tr>
+<tr><th scope="row">Full SFT</th><td>38.4</td><td>33.7</td><td>33.1</td><td>6.4</td><td>13.3</td></tr>
+<tr><th scope="row">π<sub>RL</sub> (Flow-SDE + PPO)</th><td><strong>78.8</strong></td><td>60.4</td><td>61.1</td><td><strong>22.3</strong></td><td><strong>31.5</strong></td></tr>
+<tr><th scope="row">π<sub>RL</sub> (Flow-Noise + PPO)</th><td>77.8</td><td>64.4</td><td>64.7</td><td>20.7</td><td>24.2</td></tr>
+<tr class="ours"><th scope="row">π-StepNFT</th><td>73.6</td><td><strong>66.5</strong></td><td><strong>65.8</strong></td><td>21.8</td><td>29.7</td></tr>
+<tr class="group-row"><th colspan="6" scope="colgroup">π<sub>0.5</sub></th></tr>
+<tr><th scope="row">Full SFT</th><td>40.1</td><td>37.3</td><td>38.8</td><td>14.3</td><td>22.4</td></tr>
+<tr><th scope="row">π<sub>RL</sub> (Flow-SDE + PPO)</th><td><strong>90.9</strong></td><td>66.2</td><td>68.0</td><td>33.1</td><td>45.4</td></tr>
+<tr><th scope="row">π<sub>RL</sub> (Flow-Noise + PPO)</th><td>89.7</td><td>69.8</td><td>72.4</td><td><strong>33.3</strong></td><td><strong>54.9</strong></td></tr>
+<tr class="ours"><th scope="row">π-StepNFT</th><td>84.3</td><td><strong>75.3</strong></td><td><strong>76.6</strong></td><td>30.5</td><td>42.2</td></tr>
+</tbody>
+            </table>
+          </div>
+          <figcaption>Table 2 — ManiSkill category results from manuscript Table 12. Visual averages cover five appearance perturbations; visual-language averages additionally include instruction-phrasing shifts. Semantic and execution averages each use two shared variants with results available for all methods. Bold marks the best result within each backbone and column.</figcaption>
         </figure>
       </div>
-      <p><strong>LIBERO (few-shot):</strong> &pi;-StepNFT improves performance by <strong>32.9%</strong> over SFT.</p>
-      <p><strong>ManiSkill (OOD generalization):</strong> &pi;-StepNFT improves OOD success by <strong>11.1%</strong> over critic-based baselines by mitigating multimodal overfitting.</p>
+      <p><strong>LIBERO:</strong> π-StepNFT raises average success from <strong>57.6% to 92.0%</strong> for π<sub>0</sub> (<strong>+34.4 pp</strong>) and from <strong>77.1% to 94.0%</strong> for π<sub>0.5</sub> (<strong>+16.9 pp</strong>). Critic-derived feedback further improves the averages to <strong>93.9%</strong> and <strong>96.0%</strong>, respectively. PPO retains the highest overall means.</p>
+      <p><strong>ManiSkill visual shifts:</strong> π<sub>0.5</sub>-StepNFT reaches <strong>75.3%</strong> across five test-only visual perturbations, compared with <strong>66.2%</strong> for Flow-SDE and <strong>69.8%</strong> for Flow-Noise. These are gains of <strong>9.1 pp</strong> and <strong>5.5 pp</strong>. Its robustness advantage is concentrated in visual appearance shifts; PPO baselines remain stronger in-distribution and on semantic and execution category averages.</p>
     </section>
 
     <section class="section">
       <h2>Key Ablations</h2>
-      <div class="ablation-pick">
-        <figure class="figure">
-          <img src="assets/figure2_stochastic_rollouts.png" alt="Figure 2 — On-policy stability under stochastic rollouts" />
-          <figcaption>Figure 2 — On-policy stability under stochastic rollouts.</figcaption>
-        </figure>
-        <figure class="figure">
-          <img src="assets/figure3_learning_signal.png" alt="Figure 3 — Contrastive ranking enables stable critic-free learning" />
-          <figcaption>Figure 3 — Contrastive ranking enables stable critic-free learning.</figcaption>
-        </figure>
-      </div>
-      <div class="ablation-pick">
-        <figure class="figure">
-          <img src="assets/figure4_hyperparameter_sensitivity.png" alt="Figure 4 — Hyperparameter sensitivity analysis" />
-          <figcaption>Figure 4 — Hyperparameter sensitivity analysis.</figcaption>
-        </figure>
-      </div>
+      <figure class="figure">
+        <div class="plot-grid ablation-grid"><div class="plot-panel"><img src="assets/ablation_rollout_noise.png" alt="(a) Rollout and noise treatment" loading="lazy" /><div class="panel-title">(a) Rollout and noise treatment</div></div>
+<div class="plot-panel"><img src="assets/ablation_transition_target.png" alt="(b) Regression target" loading="lazy" /><div class="panel-title">(b) Regression target</div></div>
+<div class="plot-panel"><img src="assets/ablation_step_selection.png" alt="(c) Step selection strategy" loading="lazy" /><div class="panel-title">(c) Step selection strategy</div></div>
+<div class="plot-panel"><img src="assets/ablation_ranking.png" alt="(d) Learning objective" loading="lazy" /><div class="panel-title">(d) Learning objective</div></div>
+<div class="plot-panel"><img src="assets/ablation_feedback.png" alt="(e) Preference signal" loading="lazy" /><div class="panel-title">(e) Preference signal</div></div>
+<div class="plot-panel"><img src="assets/ablation_calvin.png" alt="(f) Subgoal feedback" loading="lazy" /><div class="panel-title">(f) Subgoal feedback</div></div></div>
+        <figcaption><strong>Figure 2 — Component-wise ablations of π-StepNFT.</strong> (a) Rollout weighting and variance normalization under terminal targets. (b) Immediate next-step targets stabilize stochastic training. (c) Random step selection improves stability over fixed steps. (d) Ranking outperforms weighted-MSE and isolated positive/negative branches. (e) Binary outcomes perform best on the short-horizon ablation; ranking also supports soft feedback. (f) Relative subgoal feedback helps in a controlled long-horizon CALVIN diagnostic. Curves show five-seed means with ±1 standard deviation.</figcaption>
+      </figure>
+      <figure class="figure">
+        <div class="plot-grid hyperparameter-grid"><div class="plot-panel"><img src="assets/sensitivity_noise.png" alt="(a) Noise level σ" loading="lazy" /><div class="panel-title">(a) Noise level σ</div></div>
+<div class="plot-panel"><img src="assets/sensitivity_decay.png" alt="(b) EMA decay α" loading="lazy" /><div class="panel-title">(b) EMA decay α</div></div>
+<div class="plot-panel"><img src="assets/sensitivity_beta.png" alt="(c) Branch displacement scale β" loading="lazy" /><div class="panel-title">(c) Branch displacement scale β</div></div>
+<div class="plot-panel"><img src="assets/sensitivity_trust_region.png" alt="(d) Trust-region weight λTR" loading="lazy" /><div class="panel-title">(d) Trust-region weight λTR</div></div></div>
+        <figcaption><strong>Figure 3 — Hyperparameter sensitivity analysis.</strong> Curves show five-seed means with ±1 standard deviation; bold pink marks the main-experiment configuration.</figcaption>
+      </figure>
+      <p>Excessive SDE noise impedes convergence, while insufficient noise limits local exploration. Dynamic EMA decay balances rollout-policy lag and update stability. Branch displacement scales β ∈ [1, 2] perform best, and a trust-region weight of λ<sub>TR</sub> = 10<sup>−4</sup> regularizes updates without slowing convergence.</p>
     </section>
 
     <section class="section" id="citation">
@@ -330,7 +186,7 @@
     </section>
 
     <section class="footer">
-      <div>Replace the image placeholders in <code>assets/</code> with your final figures and tables before deployment.</div>
+      <div>Results and figures updated 28 October 2026 from the current manuscript revision. <a href="results.json">Download the reported table values (JSON)</a>.</div>
     </section>
   </main>
 </body>
